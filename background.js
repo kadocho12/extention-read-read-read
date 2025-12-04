@@ -19,6 +19,16 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+// 設定変更を監視（OFFにされたら読み上げを停止）
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'sync' && changes.enabled) {
+    // enabledがfalseに変更されたら読み上げを停止
+    if (changes.enabled.newValue === false) {
+      chrome.tts.stop();
+    }
+  }
+});
+
 // コンテントスクリプトからのメッセージを受信
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === ACTIONS.SPEAK) {
