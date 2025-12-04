@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select and Speak</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">Select and Speak</h1>
+    
+    <div class="setting-item">
+      <label class="switch-label">
+        <span class="label-text">有効化</span>
+        <div class="switch">
+          <input type="checkbox" id="enabledSwitch">
+          <span class="slider"></span>
+        </div>
+        <span class="status-text off" id="statusText">OFF</span>
+      </label>
+    </div>
+    
+    <div class="setting-item">
+      <label class="range-label">
+        <span class="label-text">読み上げ速度</span>
+        <div class="range-container">
+          <input type="range" id="rateSlider" min="0.5" max="3.0" step="0.1" value="1.0">
+          <span class="rate-value" id="rateValue">1.0x</span>
+        </div>
+        <div class="range-hints">
+          <span>0.5x</span>
+          <span>3.0x</span>
+        </div>
+      </label>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
