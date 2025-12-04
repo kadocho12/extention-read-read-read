@@ -72,7 +72,7 @@
   - `rate`: 読み上げ速度（数値、0.5〜3.0）
 - 永続化:
   - Chrome 拡張のストレージ機能（`chrome.storage.sync` もしくは `chrome.storage.local`）を利用する。
-  - 初回インストール時は `enabled = true`, `rate = 1.0` を初期値とする。
+  - 初回インストール時は `enabled = false`, `rate = 1.0` を初期値とする。
 
 ## 6. 権限・マニフェスト
 

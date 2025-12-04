@@ -1,16 +1,17 @@
 // Service Worker (Background Script)
 
+import { DEFAULT_SETTINGS, ACTIONS } from './constants.js';
+
 // 初期設定のインストール
 chrome.runtime.onInstalled.addListener(async () => {
   // 初期値を設定（既存の値がある場合は上書きしない）
-  const existing = await chrome.storage.sync.get(['enabled', 'rate']);
+  const existing = await chrome.storage.sync.get(Object.keys(DEFAULT_SETTINGS));
   
   const defaults = {};
-  if (existing.enabled === undefined) {
-    defaults.enabled = false;
-  }
-  if (existing.rate === undefined) {
-    defaults.rate = 1.0;
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    if (existing[key] === undefined) {
+      defaults[key] = value;
+    }
   }
   
   if (Object.keys(defaults).length > 0) {
@@ -20,9 +21,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // コンテントスクリプトからのメッセージを受信
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'speak') {
+  if (message.action === ACTIONS.SPEAK) {
     speakText(message.text, message.rate);
-  } else if (message.action === 'stop') {
+  } else if (message.action === ACTIONS.STOP) {
     chrome.tts.stop();
   }
   return true;
