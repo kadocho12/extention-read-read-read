@@ -32,7 +32,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // コンテントスクリプトからのメッセージを受信
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === ACTIONS.SPEAK) {
-    speakText(message.text, message.rate);
+    speakText(message.text, message.rate, message.volume);
   } else if (message.action === ACTIONS.STOP) {
     chrome.tts.stop();
   }
@@ -40,13 +40,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // テキストを読み上げる関数
-function speakText(text, rate) {
+function speakText(text, rate, volume) {
   // 現在の読み上げを停止
   chrome.tts.stop();
   
   // 新しいテキストを読み上げ
   chrome.tts.speak(text, {
     rate: rate,
+    volume: volume,
     lang: 'ja-JP',
     onEvent: (event) => {
       if (event.type === 'error') {

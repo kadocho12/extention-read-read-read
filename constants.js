@@ -3,13 +3,21 @@
 // デフォルト設定値
 export const DEFAULT_SETTINGS = {
   enabled: false,
-  rate: 1.0
+  rate: 1.0,
+  volume: 1.0
 };
 
 // 読み上げ速度の範囲
 export const RATE_RANGE = {
   min: 0.5,
   max: 3.0,
+  step: 0.1
+};
+
+// 音量の範囲
+export const VOLUME_RANGE = {
+  min: 0,
+  max: 1.0,
   step: 0.1
 };
 

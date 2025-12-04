@@ -1,7 +1,7 @@
 // テキスト選択を検知してbackgroundに送信するコンテントスクリプト
 
 // 定数（Content ScriptsはES Modulesをサポートしていないためローカル定義）
-const DEFAULT_SETTINGS = { enabled: false, rate: 1.0 };
+const DEFAULT_SETTINGS = { enabled: false, rate: 1.0, volume: 1.0 };
 const EVENT_DELAY_MS = 10;
 const ACTIONS = { SPEAK: 'speak', STOP: 'stop' };
 
@@ -40,7 +40,8 @@ document.addEventListener('mouseup', async (event) => {
     sendMessageSafely({
       action: ACTIONS.SPEAK,
       text: selectedText,
-      rate: settings.rate
+      rate: settings.rate,
+      volume: settings.volume
     });
   }, EVENT_DELAY_MS);
 });

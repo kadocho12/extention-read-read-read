@@ -5,6 +5,8 @@ const enabledSwitch = document.getElementById('enabledSwitch');
 const statusText = document.getElementById('statusText');
 const rateSlider = document.getElementById('rateSlider');
 const rateValue = document.getElementById('rateValue');
+const volumeSlider = document.getElementById('volumeSlider');
+const volumeValue = document.getElementById('volumeValue');
 
 // 設定の読み込み
 async function loadSettings() {
@@ -15,6 +17,9 @@ async function loadSettings() {
   
   rateSlider.value = result.rate;
   updateRateValue(result.rate);
+  
+  volumeSlider.value = result.volume;
+  updateVolumeValue(result.volume);
 }
 
 // ステータステキストの更新
@@ -26,6 +31,11 @@ function updateStatusText(enabled) {
 // 速度表示の更新
 function updateRateValue(rate) {
   rateValue.textContent = `${parseFloat(rate).toFixed(1)}x`;
+}
+
+// 音量表示の更新
+function updateVolumeValue(volume) {
+  volumeValue.textContent = `${Math.round(parseFloat(volume) * 100)}%`;
 }
 
 // ON/OFFスイッチの変更イベント
@@ -44,6 +54,17 @@ rateSlider.addEventListener('input', () => {
 rateSlider.addEventListener('change', async () => {
   const rate = parseFloat(rateSlider.value);
   await chrome.storage.sync.set({ rate });
+});
+
+// 音量スライダーの変更イベント
+volumeSlider.addEventListener('input', () => {
+  const volume = parseFloat(volumeSlider.value);
+  updateVolumeValue(volume);
+});
+
+volumeSlider.addEventListener('change', async () => {
+  const volume = parseFloat(volumeSlider.value);
+  await chrome.storage.sync.set({ volume });
 });
 
 // 初期化

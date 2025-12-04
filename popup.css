@@ -118,7 +118,7 @@ input:checked + .slider:before {
   margin-top: 12px;
 }
 
-#rateSlider {
+.slider-input {
   flex: 1;
   -webkit-appearance: none;
   appearance: none;
@@ -128,7 +128,7 @@ input:checked + .slider:before {
   outline: none;
 }
 
-#rateSlider::-webkit-slider-thumb {
+.slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
@@ -140,11 +140,11 @@ input:checked + .slider:before {
   transition: transform 0.2s;
 }
 
-#rateSlider::-webkit-slider-thumb:hover {
+.slider-input::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
-.rate-value {
+.slider-value {
   font-size: 14px;
   font-weight: 600;
   color: #667eea;

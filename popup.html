@@ -25,12 +25,26 @@
       <label class="range-label">
         <span class="label-text">読み上げ速度</span>
         <div class="range-container">
-          <input type="range" id="rateSlider" min="0.5" max="3.0" step="0.1" value="1.0">
-          <span class="rate-value" id="rateValue">1.0x</span>
+          <input type="range" id="rateSlider" class="slider-input" min="0.5" max="3.0" step="0.1" value="1.0">
+          <span class="slider-value" id="rateValue">1.0x</span>
         </div>
         <div class="range-hints">
           <span>0.5x</span>
           <span>3.0x</span>
+        </div>
+      </label>
+    </div>
+    
+    <div class="setting-item">
+      <label class="range-label">
+        <span class="label-text">音量</span>
+        <div class="range-container">
+          <input type="range" id="volumeSlider" class="slider-input" min="0" max="1.0" step="0.1" value="1.0">
+          <span class="slider-value" id="volumeValue">100%</span>
+        </div>
+        <div class="range-hints">
+          <span>0%</span>
+          <span>100%</span>
         </div>
       </label>
     </div>
