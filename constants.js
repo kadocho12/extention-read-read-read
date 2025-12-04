@@ -27,5 +27,6 @@ export const EVENT_DELAY_MS = 10;
 // メッセージアクション
 export const ACTIONS = {
   SPEAK: 'speak',
-  STOP: 'stop'
+  STOP: 'stop',
+  UPDATE_SETTINGS: 'updateSettings'
 };
