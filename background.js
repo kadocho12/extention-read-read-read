@@ -6,7 +6,9 @@ import { DEFAULT_SETTINGS, ACTIONS } from './constants.js';
 let currentSpeech = {
   text: '',
   charIndex: 0,
-  isSpeaking: false
+  isSpeaking: false,
+  tabId: null,
+  frameId: null
 };
 
 // 初期設定のインストール
@@ -33,6 +35,7 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     if (changes.enabled && changes.enabled.newValue === false) {
       chrome.tts.stop();
       currentSpeech.isSpeaking = false;
+      notifyEnd();
       return;
     }
     
@@ -53,17 +56,24 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
 // コンテントスクリプトからのメッセージを受信
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === ACTIONS.SPEAK) {
-    speakText(message.text, message.rate, message.volume, true);
+    speakText(message.text, message.rate, message.volume, true, {
+      tabId: sender.tab?.id ?? null,
+      frameId: sender.frameId ?? null
+    });
   } else if (message.action === ACTIONS.STOP) {
     chrome.tts.stop();
     currentSpeech.isSpeaking = false;
+    notifyEnd({
+      tabId: sender.tab?.id ?? null,
+      frameId: sender.frameId ?? null
+    });
   }
   return true;
 });
 
 // テキストを読み上げる関数
 // isNewSpeech: 新規読み上げの場合はtrue、設定変更による再開の場合はfalse
-function speakText(text, rate, volume, isNewSpeech = true) {
+function speakText(text, rate, volume, isNewSpeech = true, target = null) {
   // 現在の読み上げを停止
   chrome.tts.stop();
   
@@ -71,9 +81,12 @@ function speakText(text, rate, volume, isNewSpeech = true) {
   if (isNewSpeech) {
     currentSpeech.text = text;
     currentSpeech.charIndex = 0;
+    currentSpeech.tabId = target?.tabId ?? null;
+    currentSpeech.frameId = target?.frameId ?? null;
   }
   
   currentSpeech.isSpeaking = true;
+  notifyProgress();
   
   // 新しいテキストを読み上げ
   chrome.tts.speak(text, {
@@ -89,12 +102,47 @@ function speakText(text, rate, volume, isNewSpeech = true) {
           // 再開の場合は元のテキストでの位置に変換
           currentSpeech.charIndex = currentSpeech.text.length - text.length + event.charIndex;
         }
+        notifyProgress();
       } else if (event.type === 'end' || event.type === 'cancelled') {
         currentSpeech.isSpeaking = false;
+        notifyEnd();
       } else if (event.type === 'error') {
         currentSpeech.isSpeaking = false;
+        notifyEnd();
         console.error('TTS Error:', event.errorMessage);
       }
     }
   });
+}
+
+function notifyProgress() {
+  if (!currentSpeech.tabId) return;
+  try {
+    chrome.tabs.sendMessage(
+      currentSpeech.tabId,
+      {
+        action: ACTIONS.PROGRESS,
+        text: currentSpeech.text,
+        charIndex: currentSpeech.charIndex
+      },
+      currentSpeech.frameId != null ? { frameId: currentSpeech.frameId } : undefined
+    );
+  } catch (error) {
+    // Content scriptが存在しない場合などは無視
+    console.debug('Select and Speak: progress送信スキップ', error.message);
+  }
+}
+
+function notifyEnd(target = null) {
+  const tabId = target?.tabId ?? currentSpeech.tabId;
+  if (!tabId) return;
+  try {
+    chrome.tabs.sendMessage(
+      tabId,
+      { action: ACTIONS.END },
+      target?.frameId != null ? { frameId: target.frameId } : (currentSpeech.frameId != null ? { frameId: currentSpeech.frameId } : undefined)
+    );
+  } catch (error) {
+    console.debug('Select and Speak: end送信スキップ', error.message);
+  }
 }

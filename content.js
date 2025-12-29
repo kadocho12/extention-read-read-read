@@ -1,16 +1,48 @@
 // テキスト選択を検知してbackgroundに送信するコンテントスクリプト
 
 // 定数（Content ScriptsはES Modulesをサポートしていないためローカル定義）
-const DEFAULT_SETTINGS = { enabled: false, rate: 1.0, volume: 1.0, selectionColor: '#b3d4ff' };
+const DEFAULT_SETTINGS = {
+  enabled: false,
+  rate: 1.0,
+  volume: 1.0,
+  selectionColor: '#b3d4ff',
+  progressHighlightEnabled: true,
+  progressUnderlineEnabled: false
+};
 const EVENT_DELAY_MS = 10;
-const ACTIONS = { SPEAK: 'speak', STOP: 'stop' };
+const ACTIONS = { SPEAK: 'speak', STOP: 'stop', PROGRESS: 'progress', END: 'end' };
 
 const ROOT = document.documentElement;
 const SELECTION_STYLE_ID = 'sas-selection-style';
 const SELECTION_ENABLED_ATTR = 'data-sas-selection-enabled';
 const SELECTION_ORIGIN_ATTR = 'data-sas-selection-origin';
+const POPUP_STYLE_ID = 'sas-reading-popup-style';
+const POPUP_ID = 'sas-reading-popup';
+const POPUP_MARGIN = 8;
+const HIGHLIGHT_STYLE_ID = 'sas-progress-highlight-style';
 
 let currentSettings = { ...DEFAULT_SETTINGS };
+let popupEl = null;
+let popupSpokenEl = null;
+let popupRemainingEl = null;
+let popupRange = null;
+let popupText = '';
+let popupCharIndex = 0;
+let popupDisplayIndex = 0;
+let popupAnimRafId = null;
+let popupAnimFrom = 0;
+let popupAnimTo = 0;
+let popupAnimStart = 0;
+let popupAnimDuration = 0;
+let popupTargetIndex = 0;
+const POPUP_LEAD_CHARS = 2;
+const POPUP_ANIM_MIN_MS = 40;
+const POPUP_ANIM_MAX_MS = 260;
+const POPUP_ANIM_MS_PER_CHAR = 12;
+let highlightSpans = [];
+let highlightTotalLength = 0;
+let suppressSelectionChange = false;
+let popupNewlinePrefix = null;
 
 // 安全にメッセージを送信するヘルパー関数
 function sendMessageSafely(message) {
@@ -43,6 +75,426 @@ function ensureSelectionStyle() {
 }
   `;
   (document.head || document.documentElement).appendChild(style);
+}
+
+function ensureHighlightStyle() {
+  if (document.getElementById(HIGHLIGHT_STYLE_ID)) {
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = HIGHLIGHT_STYLE_ID;
+  style.textContent = `
+.sas-progress-segment {
+  background-repeat: no-repeat;
+  background-size: 0 0;
+  transition: none;
+}
+.sas-progress-segment.sas-progress-highlight {
+  background-image: linear-gradient(
+    to right,
+    rgba(255, 215, 0, 0.55),
+    rgba(255, 215, 0, 0.55)
+  );
+  background-size: calc(var(--sas-progress, 0) * 100%) 100%;
+  background-position: left top;
+}
+.sas-progress-segment.sas-progress-underline {
+  background-image: linear-gradient(
+    to right,
+    rgba(255, 193, 7, 0.9),
+    rgba(255, 193, 7, 0.9)
+  );
+  background-size: calc(var(--sas-progress, 0) * 100%) 2px;
+  background-position: left calc(100% - 1px);
+}
+.sas-progress-segment.sas-progress-highlight.sas-progress-underline {
+  background-image:
+    linear-gradient(to right, rgba(255, 215, 0, 0.55), rgba(255, 215, 0, 0.55)),
+    linear-gradient(to right, rgba(255, 193, 7, 0.9), rgba(255, 193, 7, 0.9));
+  background-size:
+    calc(var(--sas-progress, 0) * 100%) 100%,
+    calc(var(--sas-progress, 0) * 100%) 2px;
+  background-position:
+    left top,
+    left calc(100% - 1px);
+}
+.sas-progress-segment.sas-progress-pulse {
+  animation: sas-progress-pulse 180ms ease-out;
+  transform-origin: left center;
+}
+@keyframes sas-progress-pulse {
+  0% { transform: scale(1); }
+  55% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+  `;
+  (document.head || document.documentElement).appendChild(style);
+}
+
+function ensurePopupStyle() {
+  if (document.getElementById(POPUP_STYLE_ID)) {
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = POPUP_STYLE_ID;
+  style.textContent = `
+#${POPUP_ID} {
+  position: absolute;
+  z-index: 2147483647;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(20, 20, 20, 0.92);
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 120ms ease, transform 120ms ease;
+  font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+}
+#${POPUP_ID}[data-hidden="true"] {
+  opacity: 0;
+  transform: translateY(6px);
+}
+#${POPUP_ID} .sas-spoken {
+  color: #ffffff;
+}
+#${POPUP_ID} .sas-remaining {
+  color: rgba(255, 255, 255, 0.45);
+}
+  `;
+  (document.head || document.documentElement).appendChild(style);
+}
+
+function ensurePopup() {
+  if (popupEl) return;
+  ensurePopupStyle();
+  popupEl = document.createElement('div');
+  popupEl.id = POPUP_ID;
+  popupEl.setAttribute('data-hidden', 'true');
+
+  popupSpokenEl = document.createElement('span');
+  popupSpokenEl.className = 'sas-spoken';
+  popupRemainingEl = document.createElement('span');
+  popupRemainingEl.className = 'sas-remaining';
+
+  popupEl.appendChild(popupSpokenEl);
+  popupEl.appendChild(popupRemainingEl);
+  (document.body || document.documentElement).appendChild(popupEl);
+}
+
+function clearPopupRange() {
+  popupRange = null;
+}
+
+function setPopupRangeFromSelection() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    clearPopupRange();
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  popupRange = range.cloneRange();
+}
+
+function getPopupAnchorRect() {
+  if (popupRange) {
+    const rect = popupRange.getBoundingClientRect();
+    if (rect && rect.width + rect.height > 0) {
+      return rect;
+    }
+  }
+  const selection = window.getSelection();
+  if (selection && selection.rangeCount > 0) {
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    if (rect && rect.width + rect.height > 0) {
+      return rect;
+    }
+  }
+  return null;
+}
+
+function positionPopup() {
+  if (!popupEl) return;
+  const anchorRect = getPopupAnchorRect();
+  if (!anchorRect) {
+    hidePopup();
+    return;
+  }
+
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const popupRect = popupEl.getBoundingClientRect();
+
+  let top = anchorRect.top + scrollY - popupRect.height - POPUP_MARGIN;
+  if (top < scrollY + POPUP_MARGIN) {
+    top = anchorRect.bottom + scrollY + POPUP_MARGIN;
+  }
+
+  let left = anchorRect.left + scrollX;
+  const maxLeft = scrollX + window.innerWidth - popupRect.width - POPUP_MARGIN;
+  left = Math.min(Math.max(left, scrollX + POPUP_MARGIN), maxLeft);
+
+  popupEl.style.top = `${Math.round(top)}px`;
+  popupEl.style.left = `${Math.round(left)}px`;
+}
+
+function updatePopup(text, charIndex) {
+  if (!text) {
+    hidePopup();
+    return;
+  }
+  ensurePopup();
+  if (currentSettings.progressHighlightEnabled || currentSettings.progressUnderlineEnabled) {
+    ensureHighlightStyle();
+  }
+  popupText = text;
+  popupNewlinePrefix = buildNewlinePrefix(popupText);
+  popupCharIndex = Math.max(0, Math.min(charIndex ?? 0, text.length));
+  if (currentSettings.progressHighlightEnabled || currentSettings.progressUnderlineEnabled) {
+    updateProgressHighlight(toVisualIndex(popupCharIndex));
+  }
+  popupTargetIndex = Math.max(
+    popupCharIndex,
+    Math.min(popupCharIndex + POPUP_LEAD_CHARS, text.length)
+  );
+  startPopupInterpolation();
+  popupEl.setAttribute('data-hidden', 'false');
+  requestAnimationFrame(positionPopup);
+}
+
+function hidePopup() {
+  if (!popupEl) return;
+  popupEl.setAttribute('data-hidden', 'true');
+  stopPopupInterpolation();
+}
+
+function stopPopupInterpolation() {
+  if (popupAnimRafId) {
+    cancelAnimationFrame(popupAnimRafId);
+    popupAnimRafId = null;
+  }
+}
+
+function renderPopupAt(index) {
+  popupDisplayIndex = Math.max(0, Math.min(index, popupText.length));
+  popupSpokenEl.textContent = popupText.slice(0, popupDisplayIndex);
+  popupRemainingEl.textContent = popupText.slice(popupDisplayIndex);
+}
+
+function startPopupInterpolation() {
+  if (!popupText) {
+    return;
+  }
+
+  if (popupTargetIndex <= popupDisplayIndex) {
+    stopPopupInterpolation();
+    renderPopupAt(popupTargetIndex);
+    return;
+  }
+
+  const delta = popupTargetIndex - popupDisplayIndex;
+  popupAnimFrom = popupDisplayIndex;
+  popupAnimTo = popupTargetIndex;
+  popupAnimStart = performance.now();
+  popupAnimDuration = Math.min(
+    POPUP_ANIM_MAX_MS,
+    Math.max(POPUP_ANIM_MIN_MS, delta * POPUP_ANIM_MS_PER_CHAR)
+  );
+
+  stopPopupInterpolation();
+  const tick = (now) => {
+    const elapsed = now - popupAnimStart;
+    const t = Math.min(1, elapsed / popupAnimDuration);
+    const eased = t * (2 - t);
+    const nextIndex = Math.round(popupAnimFrom + (popupAnimTo - popupAnimFrom) * eased);
+    renderPopupAt(nextIndex);
+    if (t < 1) {
+      popupAnimRafId = requestAnimationFrame(tick);
+    } else {
+      popupAnimRafId = null;
+    }
+  };
+  popupAnimRafId = requestAnimationFrame(tick);
+}
+
+function clearProgressHighlight() {
+  if (highlightSpans.length === 0) return;
+  for (const span of highlightSpans) {
+    const parent = span.parentNode;
+    if (!parent) continue;
+    const textNode = document.createTextNode(span.textContent || '');
+    parent.replaceChild(textNode, span);
+    parent.normalize();
+  }
+  highlightSpans = [];
+  highlightTotalLength = 0;
+}
+
+function buildProgressHighlightFromSelection() {
+  if (!currentSettings.progressHighlightEnabled && !currentSettings.progressUnderlineEnabled) {
+    return;
+  }
+  clearProgressHighlight();
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return;
+  }
+  const range = selection.getRangeAt(0);
+  if (range.collapsed) {
+    return;
+  }
+
+  ensureHighlightStyle();
+
+  const ancestor = range.commonAncestorContainer;
+  const rootNode = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentNode : ancestor;
+  if (!rootNode) {
+    return;
+  }
+  const walker = document.createTreeWalker(
+    rootNode,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        if (!node.nodeValue || node.nodeValue.length === 0) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        try {
+          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        } catch (error) {
+          return NodeFilter.FILTER_REJECT;
+        }
+      }
+    }
+  );
+
+  const nodes = [];
+  while (walker.nextNode()) {
+    nodes.push(walker.currentNode);
+  }
+
+  let cumulative = 0;
+  const spans = [];
+
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    if (!text) continue;
+
+    let startOffset = 0;
+    let endOffset = text.length;
+    if (node === range.startContainer) {
+      startOffset = range.startOffset;
+    }
+    if (node === range.endContainer) {
+      endOffset = range.endOffset;
+    }
+    if (endOffset <= startOffset) {
+      continue;
+    }
+
+    const beforeText = text.slice(0, startOffset);
+    const selectedText = text.slice(startOffset, endOffset);
+    const afterText = text.slice(endOffset);
+
+    const fragment = document.createDocumentFragment();
+    if (beforeText) {
+      fragment.appendChild(document.createTextNode(beforeText));
+    }
+
+    const span = document.createElement('span');
+    span.className = getProgressSegmentClass();
+    span.textContent = selectedText;
+    span.dataset.start = String(cumulative);
+    cumulative += selectedText.length;
+    span.dataset.end = String(cumulative);
+    fragment.appendChild(span);
+    spans.push(span);
+
+    if (afterText) {
+      fragment.appendChild(document.createTextNode(afterText));
+    }
+
+    if (node.parentNode) {
+      node.parentNode.replaceChild(fragment, node);
+    }
+  }
+
+  highlightSpans = spans;
+  highlightTotalLength = cumulative;
+  updateProgressHighlight(0);
+}
+
+function updateProgressHighlight(index) {
+  if (highlightSpans.length === 0) return;
+  const clamped = Math.max(0, Math.min(index, highlightTotalLength));
+  let activeSpan = null;
+  for (const span of highlightSpans) {
+    const start = Number(span.dataset.start || 0);
+    const end = Number(span.dataset.end || 0);
+    const length = Math.max(1, end - start);
+    let progress = 0;
+    if (clamped >= end) {
+      progress = 1;
+    } else if (clamped <= start) {
+      progress = 0;
+    } else {
+      progress = (clamped - start) / length;
+      activeSpan = span;
+    }
+    span.style.setProperty('--sas-progress', progress.toFixed(3));
+  }
+  if (activeSpan) {
+    activeSpan.classList.remove('sas-progress-pulse');
+    void activeSpan.offsetHeight;
+    activeSpan.classList.add('sas-progress-pulse');
+  }
+}
+
+function getProgressSegmentClass() {
+  const classes = ['sas-progress-segment'];
+  if (currentSettings.progressHighlightEnabled) {
+    classes.push('sas-progress-highlight');
+  }
+  if (currentSettings.progressUnderlineEnabled) {
+    classes.push('sas-progress-underline');
+  }
+  return classes.join(' ');
+}
+
+function updateProgressSegmentClasses() {
+  if (highlightSpans.length === 0) return;
+  const className = getProgressSegmentClass();
+  for (const span of highlightSpans) {
+    span.className = className;
+  }
+}
+
+function buildNewlinePrefix(text) {
+  const prefix = new Array(text.length + 1);
+  let count = 0;
+  prefix[0] = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === '\n') {
+      count += 1;
+    }
+    prefix[i + 1] = count;
+  }
+  return prefix;
+}
+
+function toVisualIndex(index) {
+  if (!popupNewlinePrefix) {
+    return index;
+  }
+  const clamped = Math.max(0, Math.min(index, popupNewlinePrefix.length - 1));
+  return clamped - popupNewlinePrefix[clamped];
 }
 
 function normalizeHexColor(value) {
@@ -143,9 +595,27 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     applySelectionColors(currentSettings.selectionColor);
     setSelectionEnabled(currentSettings.enabled);
   }
+  if (changes.progressHighlightEnabled || changes.progressUnderlineEnabled) {
+    if (!currentSettings.progressHighlightEnabled && !currentSettings.progressUnderlineEnabled) {
+      clearProgressHighlight();
+    } else {
+      ensureHighlightStyle();
+      updateProgressSegmentClasses();
+    }
+  }
 });
 
 loadSettings();
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === ACTIONS.PROGRESS) {
+    updatePopup(message.text, message.charIndex);
+  } else if (message.action === ACTIONS.END) {
+    hidePopup();
+    clearPopupRange();
+    clearProgressHighlight();
+  }
+});
 
 // mouseupイベントでテキスト選択を検知
 // 選択完了をトリガーに読み上げ開始
@@ -171,6 +641,16 @@ document.addEventListener('mouseup', async (event) => {
 
     if (selectedText && selectedText.length > 0) {
       setSelectionOrigin('mouse');
+      setPopupRangeFromSelection();
+      buildProgressHighlightFromSelection();
+      updatePopup(selectedText, 0);
+      if (currentSettings.progressHighlightEnabled || currentSettings.progressUnderlineEnabled) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          suppressSelectionChange = true;
+          selection.removeAllRanges();
+        }
+      }
     }
     
     // backgroundスクリプトに読み上げリクエストを送信
@@ -187,6 +667,10 @@ document.addEventListener('mouseup', async (event) => {
 document.addEventListener('selectionchange', async () => {
   // selectionchange はドラッグ中にも発火するので少し待って確定させる
   setTimeout(async () => {
+    if (suppressSelectionChange) {
+      suppressSelectionChange = false;
+      return;
+    }
     // 設定を取得して有効時のみ処理
     const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
     currentSettings = settings;
@@ -200,6 +684,9 @@ document.addEventListener('selectionchange', async () => {
     // 選択が空（解除）になったら停止を通知
     if (!selectedText || selectedText.length === 0) {
       setSelectionOrigin(null);
+      hidePopup();
+      clearPopupRange();
+      clearProgressHighlight();
       sendMessageSafely({ action: ACTIONS.STOP });
     }
   }, EVENT_DELAY_MS);
@@ -210,4 +697,7 @@ document.addEventListener('keydown', () => {
     return;
   }
   setSelectionOrigin(null);
+  hidePopup();
+  clearPopupRange();
+  clearProgressHighlight();
 });

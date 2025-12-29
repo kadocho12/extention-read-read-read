@@ -9,13 +9,17 @@ const volumeSlider = document.getElementById('volumeSlider');
 const volumeValue = document.getElementById('volumeValue');
 const selectionColorPicker = document.getElementById('selectionColorPicker');
 const selectionColorInput = document.getElementById('selectionColorInput');
+const progressHighlightSwitch = document.getElementById('progressHighlightSwitch');
+const progressHighlightStatus = document.getElementById('progressHighlightStatus');
+const progressUnderlineSwitch = document.getElementById('progressUnderlineSwitch');
+const progressUnderlineStatus = document.getElementById('progressUnderlineStatus');
 
 // 設定の読み込み
 async function loadSettings() {
   const result = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   
   enabledSwitch.checked = result.enabled;
-  updateStatusText(result.enabled);
+  updateStatusText(result.enabled, statusText);
   
   rateSlider.value = result.rate;
   updateRateValue(result.rate);
@@ -24,12 +28,18 @@ async function loadSettings() {
   updateVolumeValue(result.volume);
 
   setColorInputs(result.selectionColor);
+
+  progressHighlightSwitch.checked = result.progressHighlightEnabled;
+  updateStatusText(result.progressHighlightEnabled, progressHighlightStatus);
+
+  progressUnderlineSwitch.checked = result.progressUnderlineEnabled;
+  updateStatusText(result.progressUnderlineEnabled, progressUnderlineStatus);
 }
 
 // ステータステキストの更新
-function updateStatusText(enabled) {
-  statusText.textContent = enabled ? 'ON' : 'OFF';
-  statusText.classList.toggle('off', !enabled);
+function updateStatusText(enabled, target) {
+  target.textContent = enabled ? 'ON' : 'OFF';
+  target.classList.toggle('off', !enabled);
 }
 
 // 速度表示の更新
@@ -70,7 +80,7 @@ function setColorInputs(color) {
 enabledSwitch.addEventListener('change', async () => {
   const enabled = enabledSwitch.checked;
   await chrome.storage.sync.set({ enabled });
-  updateStatusText(enabled);
+  updateStatusText(enabled, statusText);
 });
 
 // 速度スライダーの変更イベント
@@ -134,6 +144,18 @@ selectionColorInput.addEventListener('blur', async () => {
   }
   setColorInputs(normalized);
   await chrome.storage.sync.set({ selectionColor: normalized });
+});
+
+progressHighlightSwitch.addEventListener('change', async () => {
+  const progressHighlightEnabled = progressHighlightSwitch.checked;
+  await chrome.storage.sync.set({ progressHighlightEnabled });
+  updateStatusText(progressHighlightEnabled, progressHighlightStatus);
+});
+
+progressUnderlineSwitch.addEventListener('change', async () => {
+  const progressUnderlineEnabled = progressUnderlineSwitch.checked;
+  await chrome.storage.sync.set({ progressUnderlineEnabled });
+  updateStatusText(progressUnderlineEnabled, progressUnderlineStatus);
 });
 
 // 初期化

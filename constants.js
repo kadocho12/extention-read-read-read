@@ -5,7 +5,9 @@ export const DEFAULT_SETTINGS = {
   enabled: false,
   rate: 1.0,
   volume: 1.0,
-  selectionColor: '#b3d4ff'
+  selectionColor: '#b3d4ff',
+  progressHighlightEnabled: true,
+  progressUnderlineEnabled: false
 };
 
 // 読み上げ速度の範囲
@@ -29,5 +31,7 @@ export const EVENT_DELAY_MS = 10;
 export const ACTIONS = {
   SPEAK: 'speak',
   STOP: 'stop',
+  PROGRESS: 'progress',
+  END: 'end',
   UPDATE_SETTINGS: 'updateSettings'
 };
