@@ -1,0 +1,151 @@
+{
+  "repo_notes": [
+    {
+      "content": "日本人が見るので日本語を使用してください。"
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview",
+      "purpose": "Introduce the Select and Speak Chrome extension, its purpose, core functionality, and key features",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Architecture",
+      "purpose": "Explain the high-level system architecture, component relationships, communication patterns, and execution contexts",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Background Service Worker",
+      "purpose": "Deep dive into background.js - the core TTS orchestration system, speech state management, message handling, and event coordination",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Speech Synthesis Management",
+      "purpose": "Detailed explanation of how the background service worker manages chrome.tts API, handles speech events, and tracks speech progress",
+      "parent": "Background Service Worker",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Message Protocol and Communication",
+      "purpose": "Explain the message passing system, ACTIONS protocol, and how the background worker communicates with content scripts",
+      "parent": "Background Service Worker",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Configuration System",
+      "purpose": "Explain constants.js - the shared configuration, default settings, action types, and how it's used across all components",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Content Script",
+      "purpose": "Deep dive into content.js - text selection detection, DOM manipulation, visual feedback, and web page integration",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Text Selection Detection",
+      "purpose": "Explain how the content script detects user text selections, handles mouse and keyboard events, and validates selections",
+      "parent": "Content Script",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Visual Feedback System",
+      "purpose": "Detailed explanation of the highlighting system, progress indicators, popup display, and DOM element injection",
+      "parent": "Content Script",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Color Accessibility",
+      "purpose": "Explain the color contrast calculation system, WCAG compliance, and dynamic text color selection",
+      "parent": "Content Script",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Settings Popup Interface",
+      "purpose": "Overview of the popup UI - its structure, behavior, and how users configure the extension",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "UI Structure and Behavior",
+      "purpose": "Explain popup.html and popup.js - the DOM structure, event handlers, settings persistence, and user interactions",
+      "parent": "Settings Popup Interface",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Visual Design and Styling",
+      "purpose": "Explain popup.css - the component styling, theme system, and visual design patterns",
+      "parent": "Settings Popup Interface",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Extension Configuration",
+      "purpose": "Explain manifest.json, permissions, content script injection, and the extension's requirements and capabilities",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Visual Assets",
+      "purpose": "Document the icon files, their purposes, and usage in different contexts",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
