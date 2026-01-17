@@ -31,18 +31,14 @@ function ensureSelectionStyle() {
   const style = document.createElement('style');
   style.id = SELECTION_STYLE_ID;
   style.textContent = `
-:root {
-  --sas-selection-bg: ${DEFAULT_SETTINGS.selectionColor};
-  --sas-selection-text: #000000;
-}
-:root[${SELECTION_ENABLED_ATTR}="true"][${SELECTION_ORIGIN_ATTR}="mouse"] ::selection {
-  background: var(--sas-selection-bg);
-  color: var(--sas-selection-text);
-}
-:root[${SELECTION_ENABLED_ATTR}="true"][${SELECTION_ORIGIN_ATTR}="mouse"] ::-moz-selection {
-  background: var(--sas-selection-bg);
-  color: var(--sas-selection-text);
-}
+    :root {
+      --sas-selection-bg: ${DEFAULT_SETTINGS.selectionColor};
+      --sas-selection-text: #000000;
+    }
+    :root[${SELECTION_ENABLED_ATTR}="true"][${SELECTION_ORIGIN_ATTR}="mouse"] ::selection {
+      background: var(--sas-selection-bg);
+      color: var(--sas-selection-text);
+    }
   `;
   (document.head || document.documentElement).appendChild(style);
 }
