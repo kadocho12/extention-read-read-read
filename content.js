@@ -1,9 +1,17 @@
 // テキスト選択を検知してbackgroundに送信するコンテントスクリプト
 
 // 定数（Content ScriptsはES Modulesをサポートしていないためローカル定義）
-const DEFAULT_SETTINGS = { enabled: false, rate: 1.0, volume: 1.0, selectionColor: '#b3d4ff' };
+const DEFAULT_SETTINGS = {
+  enabled: false,
+  rate: 1.0,
+  volume: 1.0,
+  selectionColor: '#b3d4ff'
+};
 const EVENT_DELAY_MS = 10;
-const ACTIONS = { SPEAK: 'speak', STOP: 'stop' };
+const ACTIONS = {
+  SPEAK: 'speak',
+  STOP: 'stop'
+};
 
 const ROOT = document.documentElement;
 const SELECTION_STYLE_ID = 'sas-selection-style';
@@ -146,13 +154,8 @@ loadSettings();
 document.addEventListener('mouseup', async (event) => {
   // 少し遅延を入れて選択が確定するのを待つ
   setTimeout(async () => {
-    const selection = window.getSelection();
+    const selection = window.getSelection();    
     const selectedText = selection.toString().trim();
-    
-    // 空文字列や空白のみの場合は何もしない
-    if (!selectedText || selectedText.length === 0) {
-      return;
-    }
     
     // 設定を取得
     const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
