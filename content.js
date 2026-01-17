@@ -12,14 +12,8 @@ const SELECTION_ORIGIN_ATTR = 'data-sas-selection-origin';
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 
-// 安全にメッセージを送信するヘルパー関数
 function sendMessageSafely(message) {
-  try {
-    chrome.runtime.sendMessage(message);
-  } catch (error) {
-    // 拡張機能のコンテキストが無効な場合は無視
-    console.debug('Select and Speak: メッセージ送信スキップ', error.message);
-  }
+  chrome.runtime.sendMessage(message);
 }
 
 function ensureSelectionStyle() {
