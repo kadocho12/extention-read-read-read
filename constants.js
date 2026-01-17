@@ -4,8 +4,7 @@
 export const DEFAULT_SETTINGS = {
   enabled: false,
   rate: 1.0,
-  volume: 1.0,
-  selectionColor: '#b3d4ff'
+  volume: 1.0
 };
 
 // 読み上げ速度の範囲

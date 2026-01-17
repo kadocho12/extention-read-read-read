@@ -4,8 +4,7 @@
 const DEFAULT_SETTINGS = {
   enabled: false,
   rate: 1.0,
-  volume: 1.0,
-  selectionColor: '#b3d4ff'
+  volume: 1.0
 };
 const EVENT_DELAY_MS = 10;
 const ACTIONS = {
@@ -13,110 +12,15 @@ const ACTIONS = {
   STOP: 'stop'
 };
 
-const ROOT = document.documentElement;
-const SELECTION_STYLE_ID = 'sas-selection-style';
-const SELECTION_ENABLED_ATTR = 'data-sas-selection-enabled';
-
 let currentSettings = { ...DEFAULT_SETTINGS };
 
 function sendMessageSafely(message) {
   chrome.runtime.sendMessage(message);
 }
 
-function ensureSelectionStyle() {
-  if (document.getElementById(SELECTION_STYLE_ID)) {
-    return;
-  }
-  const style = document.createElement('style');
-  style.id = SELECTION_STYLE_ID;
-  style.textContent = `
-    :root {
-      --sas-selection-bg: ${DEFAULT_SETTINGS.selectionColor};
-      --sas-selection-text: #000000;
-    }
-    :root[${SELECTION_ENABLED_ATTR}="true"] ::selection {
-      background: var(--sas-selection-bg);
-      color: var(--sas-selection-text);
-    }
-  `;
-  (document.head || document.documentElement).appendChild(style);
-}
-
-function normalizeHexColor(value) {
-  if (!value) return null;
-  let hex = String(value).trim().toLowerCase();
-  if (!hex.startsWith('#')) {
-    hex = `#${hex}`;
-  }
-  const shortMatch = /^#([0-9a-f]{3})$/i.exec(hex);
-  if (shortMatch) {
-    const [r, g, b] = shortMatch[1].split('');
-    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-  }
-  if (/^#[0-9a-f]{6}$/i.test(hex)) {
-    return hex.toLowerCase();
-  }
-  return null;
-}
-
-function hexToRgb(hex) {
-  const normalized = normalizeHexColor(hex);
-  if (!normalized) return null;
-  const value = normalized.slice(1);
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  return { r, g, b };
-}
-
-function linearizeChannel(channel) {
-  const c = channel / 255;
-  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-}
-
-function relativeLuminance({ r, g, b }) {
-  const rLin = linearizeChannel(r);
-  const gLin = linearizeChannel(g);
-  const bLin = linearizeChannel(b);
-  return 0.2126 * rLin + 0.7152 * gLin + 0.0722 * bLin;
-}
-
-function contrastRatio(l1, l2) {
-  const lighter = Math.max(l1, l2);
-  const darker = Math.min(l1, l2);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function pickTextColor(bgHex) {
-  const rgb = hexToRgb(bgHex);
-  if (!rgb) return '#000000';
-  const lum = relativeLuminance(rgb);
-  const contrastBlack = contrastRatio(lum, 0);
-  const contrastWhite = contrastRatio(1, lum);
-  return contrastBlack >= contrastWhite ? '#000000' : '#ffffff';
-}
-
-function applySelectionColors(color) {
-  ensureSelectionStyle();
-  const normalized = normalizeHexColor(color) || DEFAULT_SETTINGS.selectionColor;
-  const textColor = pickTextColor(normalized);
-  ROOT.style.setProperty('--sas-selection-bg', normalized);
-  ROOT.style.setProperty('--sas-selection-text', textColor);
-}
-
-function setSelectionEnabled(enabled) {
-  if (enabled) {
-    ROOT.setAttribute(SELECTION_ENABLED_ATTR, 'true');
-  } else {
-    ROOT.removeAttribute(SELECTION_ENABLED_ATTR);
-  }
-}
-
 async function loadSettings() {
   const settings = await chrome.storage.sync.get(DEFAULT_SETTINGS);
   currentSettings = settings;
-  applySelectionColors(settings.selectionColor);
-  setSelectionEnabled(settings.enabled);
   return settings;
 }
 
@@ -127,10 +31,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     next[key] = change.newValue;
   }
   currentSettings = next;
-  if (changes.selectionColor || changes.enabled) {
-    applySelectionColors(currentSettings.selectionColor);
-    setSelectionEnabled(currentSettings.enabled);
-  }
 });
 
 loadSettings();
