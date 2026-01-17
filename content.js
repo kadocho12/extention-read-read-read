@@ -16,7 +16,6 @@ const ACTIONS = {
 const ROOT = document.documentElement;
 const SELECTION_STYLE_ID = 'sas-selection-style';
 const SELECTION_ENABLED_ATTR = 'data-sas-selection-enabled';
-const SELECTION_ORIGIN_ATTR = 'data-sas-selection-origin';
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 
@@ -35,7 +34,7 @@ function ensureSelectionStyle() {
       --sas-selection-bg: ${DEFAULT_SETTINGS.selectionColor};
       --sas-selection-text: #000000;
     }
-    :root[${SELECTION_ENABLED_ATTR}="true"][${SELECTION_ORIGIN_ATTR}="mouse"] ::selection {
+    :root[${SELECTION_ENABLED_ATTR}="true"] ::selection {
       background: var(--sas-selection-bg);
       color: var(--sas-selection-text);
     }
@@ -110,15 +109,6 @@ function setSelectionEnabled(enabled) {
     ROOT.setAttribute(SELECTION_ENABLED_ATTR, 'true');
   } else {
     ROOT.removeAttribute(SELECTION_ENABLED_ATTR);
-    setSelectionOrigin(null);
-  }
-}
-
-function setSelectionOrigin(origin) {
-  if (origin === 'mouse') {
-    ROOT.setAttribute(SELECTION_ORIGIN_ATTR, 'mouse');
-  } else {
-    ROOT.removeAttribute(SELECTION_ORIGIN_ATTR);
   }
 }
 
@@ -162,10 +152,6 @@ document.addEventListener('mouseup', async (event) => {
       return;
     }
 
-    if (selectedText && selectedText.length > 0) {
-      setSelectionOrigin('mouse');
-    }
-    
     // backgroundスクリプトに読み上げリクエストを送信
     sendMessageSafely({
       action: ACTIONS.SPEAK,
@@ -192,7 +178,6 @@ document.addEventListener('selectionchange', async () => {
 
     // 選択が空（解除）になったら停止を通知
     if (!selectedText || selectedText.length === 0) {
-      setSelectionOrigin(null);
       sendMessageSafely({ action: ACTIONS.STOP });
     }
   }, EVENT_DELAY_MS);
@@ -202,5 +187,4 @@ document.addEventListener('keydown', () => {
   if (!currentSettings.enabled) {
     return;
   }
-  setSelectionOrigin(null);
 });
